@@ -2,10 +2,11 @@
 
 from PIL import Image
 
-
-def get_chunks(lst, n):
+def get_chunks(lst, n, pad=None):
     while lst:
         ret, lst = lst[:n], lst[n:]
+        if len(ret) < n and pad is not None:
+            ret += [pad]*(n-len(ret))
         yield ret
 
 
@@ -40,6 +41,14 @@ def test_get_chunks():
     assert len(chunks) == 7
     assert chunks[0] == [ 0, 1, 2 ]
     assert chunks[-1] == [ 18, 19 ]
+
+
+def test_get_chunks_padding():
+    lst = list(range(20))
+    chunks = list(get_chunks(lst, 3, 33))
+    assert len(chunks) == 7
+    assert chunks[0] == [ 0, 1, 2 ]
+    assert chunks[-1] == [ 18, 19, 33 ]
 
 
 def test_split_image():
