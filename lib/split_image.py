@@ -25,7 +25,11 @@ def bytes_to_bitmap(bts):
             out |= bool(pixel)
             out <<= 1
         out_array.append(out>>1)
-    return bytes(out_array)
+    return out_array
+
+
+def image_to_epd_data(img):
+    return bytes_to_bitmap(img.convert('L').transpose(Image.ROTATE_90).tobytes())
 
 
 # Tests
@@ -51,4 +55,16 @@ def test_split_image():
 def test_bytes_to_bitmap():
     bts = b'\x00\x00\x00\xff\x00\xff\xff\xff\x00\x00\xff\x00\xff\xff\xff\x00'
     bitmap = bytes_to_bitmap(bts)
-    assert bitmap == b'\x17\x2e'
+    assert bitmap == [ 0x17, 0x2e ]
+
+def test_image_to_epd():
+    import toml
+    image_file = 'tests/2in13bc-ry.bmp'
+    toml_file = 'tests/2in13bc-ry.toml'
+    with open(toml_file, 'rt') as f:
+        toml_data = toml.load(f)
+
+    image = Image.open(image_file)
+    epd_data = image_to_epd_data(image)
+
+    assert epd_data == toml_data['epd_data_expected']
