@@ -35,11 +35,11 @@ import time
 
 class RaspberryPi:
     # Pin definition
-    RST_PIN         = 17
+    #RST_PIN         = 17   # RST is not used - we turn off PWR (VCC) instead when done
     DC_PIN          = 25
     CS_PIN          = 8
-    BUSY_PIN        = 24
-    PWR_PIN         = 23
+    BUSY_PIN        = 7
+    PWR_PIN         = 24
 
     def __init__(self):
         import spidev
@@ -66,7 +66,7 @@ class RaspberryPi:
         self.GPIO.setmode(self.GPIO.BCM)
         self.GPIO.setwarnings(False)
         self.GPIO.setup(self.PWR_PIN, self.GPIO.OUT)
-        self.GPIO.setup(self.RST_PIN, self.GPIO.OUT)
+        #self.GPIO.setup(self.RST_PIN, self.GPIO.OUT)
         self.GPIO.setup(self.DC_PIN, self.GPIO.OUT)
         self.GPIO.setup(self.CS_PIN, self.GPIO.OUT)
         self.GPIO.setup(self.BUSY_PIN, self.GPIO.IN)
@@ -79,8 +79,8 @@ class RaspberryPi:
         logging.debug("spi end")
         self.SPI.close()
 
-        logging.debug("close 5V, Module enters 0 power consumption ...")
-        self.GPIO.output(self.RST_PIN, 0)
+        logging.debug("Turn off VCC - enter zero power consumption...")
+        #self.GPIO.output(self.RST_PIN, 0)
         self.GPIO.output(self.DC_PIN, 0)
         self.GPIO.output(self.PWR_PIN, 0)
 
