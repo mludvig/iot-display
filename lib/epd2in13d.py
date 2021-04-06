@@ -46,6 +46,9 @@ class EPD:
         self.width = EPD_WIDTH
         self.height = EPD_HEIGHT
 
+        if not epdconfig.module_init():
+            raise RuntimeError("epdconfig.module_init() failed")
+
     lut_vcomDC = [  
         0x00, 0x08, 0x00, 0x00, 0x00, 0x02,
         0x60, 0x28, 0x28, 0x00, 0x00, 0x01,
@@ -182,8 +185,8 @@ class EPD:
         self.ReadBusy()
         
     def init(self):
-        if (epdconfig.module_init() != 0):
-            return -1
+        self.display_on()
+
         # EPD hardware init start
         self.reset()
         
@@ -372,7 +375,15 @@ class EPD:
         self.send_command(0X02) # power off
         self.send_command(0X07) # deep sleep  
         self.send_data(0xA5)
+        epdconfig.display_off()
 
+    def display_on(self):
+        epdconfig.display_on()
+
+    def display_off(self):
+        epdconfig.display_off()
+
+    def module_exit(self):
         epdconfig.module_exit()
 
 ### END OF FILE ###

@@ -18,6 +18,9 @@ WHITE=(255, 255, 255)
 BLACK=(0, 0, 0)
 
 class Display:
+    def __init__(self):
+        self.epd = epd2in13d.EPD()
+
     def display(self, image_file):
         try:
             logging.info(f"Read Image File: {image_file}")
@@ -26,10 +29,8 @@ class Display:
             img_ry = split_image(img, RED, BLACK, WHITE)
             img_b = split_image(img, WHITE, BLACK, WHITE)
 
-            logging.info("epd2in13d create")
-            epd = epd2in13d.EPD()
             logging.info("epd2in13d init")
-            epd.init()
+            self.epd.init()
             #epd.Clear(0xFF)
 
             logging.info("Converting EPD data")
@@ -37,7 +38,7 @@ class Display:
             buf_b = image_to_epd_data(img_b)
 
             logging.info("Display image")
-            epd.display(buf_b, buf_ry)
+            self.epd.display(buf_b, buf_ry)
 
         except Exception as e:
             logging.error(e)
@@ -46,7 +47,8 @@ class Display:
             logging.info("ctrl + c:")
 
         finally:
-            epd2in13d.epdconfig.module_exit()
+            #self.epd.display_off()
+            pass
 
 if __name__ == "__main__":
     display = Display()
