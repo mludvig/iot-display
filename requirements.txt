@@ -1,0 +1,2 @@
+pymessagebus>=1.2.3
+adafruit-circuitpython-rgb-display
