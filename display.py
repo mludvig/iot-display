@@ -6,7 +6,7 @@ import adafruit_rgb_display.st7735 as st7735
 from PIL import Image, ImageDraw
 from io import BytesIO
 
-class Display:
+class DisplayDriver:
     # GPIO configuration
     CS_PIN = board.CE0
     DC_PIN = board.D25
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     import time
     import requests
     
-    display = Display()
+    display = DisplayDriver()
     #url = f"https://unsplash.it/{display.width}/{display.height}/?random"
     #url = f"https://picsum.photos/id/718/{display.width}/{display.height}"
     url = f"https://source.unsplash.com/random/{display.width}x{display.height}"
