@@ -10,6 +10,7 @@ from io import BytesIO
 
 from display import DisplayDriver
 from messagebus import MessageBus, ButtonMessage, DisplayMessage
+from imageutils import draw_time
 
 LED1 = "GPIO20"
 LED2 = "GPIO21"
@@ -99,6 +100,7 @@ class Display(Thread):
             print(f"Exception: {e}")
             return
         
+        draw_time(image)
         self.disp.display_image(image)
 
 if __name__ == "__main__":
