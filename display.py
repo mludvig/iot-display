@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 
+import time
+from threading import Thread
+from io import BytesIO
+
 import digitalio
 import board
+
+import requests
 import adafruit_rgb_display.st7735 as st7735
 from PIL import Image, ImageDraw
-from io import BytesIO
+
+from imageutils import draw_time
 
 class DisplayDriver:
     # GPIO configuration
@@ -62,6 +69,33 @@ class DisplayDriver:
         
         # Display image.
         self._display.image(image)
+
+class Display(Thread):
+    def __init__(self, messagebus):
+        super(Display, self).__init__(name="Display")
+        self.disp = DisplayDriver()
+        self.messagebus = messagebus
+        self.messagebus.subscribe("Display", self.message_handler)
+        self.url = f"https://source.unsplash.com/random/{self.disp.width}x{self.disp.height}"
+
+    def run(self):
+        while True:
+            self.messagebus.publish("Display", "refresh")
+            time.sleep(10)
+
+    def message_handler(self, component, message):
+        print(f"Display: received: {message} (component={component})")
+        try:
+            r = requests.get(self.url)
+            print(r.url)
+            r.raise_for_status()
+            image = Image.open(BytesIO(r.content))
+        except Exception as e:
+            print(f"Exception: {e}")
+            return
+        
+        draw_time(image)
+        self.disp.display_image(image)
 
 if __name__ == "__main__":
     import time
