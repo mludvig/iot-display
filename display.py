@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import time
+from datetime import datetime
 from threading import Thread
 from io import BytesIO
 
@@ -9,9 +10,15 @@ import board
 
 import requests
 import adafruit_rgb_display.st7735 as st7735
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
-from imageutils import draw_time
+TIME_FORMAT = "%I:%M %p"
+FONT_FILE = "fonts/bttf.ttf"
+FONT_SIZE_TIME = 15
+FONT_SIZE_TEXT = 60
+FONT_SIZE_SUBTEXT = 10
+WALLPAPER = "images/wallpaper.jpg"  # Initial image
+WALLPAPER_CHANGE = 30   # Seconds
 
 class DisplayDriver:
     # GPIO configuration
@@ -52,6 +59,7 @@ class DisplayDriver:
         """
         if image.width > self.width or image.height > self.height:
             # If any dimension is bigger than our display scale it down
+            print(f"Resizing from {image.width}x{image.height} to {self.width}x{self.height}")
             image_ratio = image.width / image.height
             screen_ratio = self.width / self.height
             if screen_ratio > image_ratio:
@@ -73,29 +81,122 @@ class DisplayDriver:
 class Display(Thread):
     def __init__(self, messagebus):
         super(Display, self).__init__(name="Display")
-        self.disp = DisplayDriver()
+        self.period = 60
+
+        self.driver = DisplayDriver()
+        self.font_time = ImageFont.truetype(FONT_FILE, FONT_SIZE_TIME)
+        self.font_text = ImageFont.truetype(FONT_FILE, FONT_SIZE_TEXT)
+        self.font_subtext = ImageFont.truetype(FONT_FILE, FONT_SIZE_SUBTEXT)
+        self.image = Image.open(WALLPAPER)  # Initial image
+
+        # Only subscribe to messagebus after we have the initial image
         self.messagebus = messagebus
         self.messagebus.subscribe("Display", self.message_handler)
-        self.url = f"https://source.unsplash.com/random/{self.disp.width}x{self.disp.height}"
+
+        # Start ImageDownloader background task
+        self.image_downloader = ImageDownloader(self, messagebus)
+        self.image_downloader.start()
 
     def run(self):
+        start_ts = time.time()
         while True:
-            self.messagebus.publish("Display", "refresh")
-            time.sleep(10)
+            print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: Start")
+            image = self.draw_time(self.image)
+            self.driver.display_image(image)
+            print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: Done")
 
-    def message_handler(self, component, message):
-        print(f"Display: received: {message} (component={component})")
+            time.sleep(self.period - ((time.time() - start_ts) % self.period))
+
+    def message_handler(self, component, message, payload=None):
+        print(f"{self.name}: component={component} message={message} payload={payload}")
+        if message == "refresh":
+            image = self.draw_time(self.image)
+        elif message == "display-message":
+            image = self.draw_message(self.image, payload)
+        else:
+            print(f"{self.name}: Unknown message, ignored")
+            return
+        self.driver.display_image(image)
+
+    def update_image(self, image):
+        self.image = image
+
+    def draw_time(self, image):
+        # Draw into a new copy of the image
+        image_draw = image.copy()
+        draw = ImageDraw.Draw(image_draw)
+        text = datetime.strftime(datetime.now(), TIME_FORMAT)
+        text = text.lstrip('0')
+        bbox = draw.textbbox((0,0), text=text, font=self.font_time, stroke_width=1)
+        width = bbox[2]-bbox[0]
+        height = bbox[3]-bbox[1]
+        draw.text((image_draw.width/2 - width/2, image_draw.height - height - bbox[1] - 5), text, font=self.font_time, fill=(255,255,255), stroke_width=1, stroke_fill=(0,0,0))
+        return image_draw
+
+    def draw_message(self, image, payload):
+        subtext = None
+        subtext_color = None
+        if isinstance(payload, dict):
+            text = payload.get('text', '??')
+            color = payload.get('color', 'yellow')
+            subtext = payload.get('subtext', None)
+            subtext_color = payload.get('subtext_color', color)
+        elif isinstance(payload, str):
+            text = payload
+            color = 'orange'
+        else:
+            print(f"{self.name}: Invalid payload.")
+            text = 'XXX'
+            color = 'red'
+        if subtext and not subtext_color:
+            subtext_color = color
+
+        # Draw into a new copy of the image
+        image_draw = image.copy()
+        draw = ImageDraw.Draw(image_draw)
+
+        # Draw subtext - if any
+        subtext_height_occupied = 0
+        if subtext:
+            subtext_bbox = draw.textbbox((0,0), text=subtext, font=self.font_subtext, stroke_width=1)
+            subtext_width = subtext_bbox[2]-subtext_bbox[0]
+            subtext_height = subtext_bbox[3]-subtext_bbox[1]
+            subtext_height_occupied = subtext_height + subtext_bbox[1] + 5
+            draw.text((image_draw.width/2 - subtext_width/2, image_draw.height - subtext_height_occupied), subtext, font=self.font_subtext, fill=subtext_color, stroke_width=1, stroke_fill=(0,0,0))
+
+        # Draw main text
+        text_bbox = draw.textbbox((0,0), text=text, font=self.font_text, stroke_width=1)
+        text_width = text_bbox[2]-text_bbox[0]
+        text_height = text_bbox[3]-text_bbox[1]
+        draw.text((image_draw.width/2 - text_width/2, (image_draw.height - subtext_height_occupied)/2 - text_height/2), text, font=self.font_text, fill=color, stroke_width=1, stroke_fill=(0,0,0))
+
+        return image_draw
+
+class ImageDownloader(Thread):
+    def __init__(self, display, messagebus):
+        super(ImageDownloader, self).__init__(name="ImageDownloader")
+        self.period = WALLPAPER_CHANGE    # Download a new image every this many seconds
+        self.messagebus = messagebus
+        self.display = display
+
+        self.url = f"https://source.unsplash.com/random/{self.display.driver.width}x{self.display.driver.height}"
+
+    def run(self):
+        start_ts = time.time()
+        while True:
+            self.download_image()
+            time.sleep(self.period - ((time.time() - start_ts) % self.period))
+
+    def download_image(self):
         try:
             r = requests.get(self.url)
-            print(r.url)
+            print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: {r.url}")
             r.raise_for_status()
             image = Image.open(BytesIO(r.content))
+            self.display.update_image(image)
+            self.messagebus.publish("Display", "refresh", payload="NewImage")
         except Exception as e:
-            print(f"Exception: {e}")
-            return
-        
-        draw_time(image)
-        self.disp.display_image(image)
+            print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: {e}")
 
 if __name__ == "__main__":
     import time
