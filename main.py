@@ -36,15 +36,15 @@ class Controller:
         print(f"Controller: component={component} message={message} kwargs={kwargs}")
         if component == "Button":
             if message == "pressed":
-                self.messagebus.publish("Blinker", "fast")
+                self.messagebus.publish("Blinker", "fast", payload={"expire": 120}) # Expire fast-blinking after 2 mins at the latest
             elif message == "released":
                 self.messagebus.publish("Display", "display-message", payload=self.mqtt_to_display(self.last_mqtt_payload))
-                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='slow'))
+                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='slow'), payload={"expire": 30})
         elif component == "MQTT":
             if message == "message" and 'payload' in kwargs:
                 self.last_mqtt_payload = kwargs['payload']
                 self.messagebus.publish("Display", "display-message", payload=self.mqtt_to_display(self.last_mqtt_payload))
-                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='slow'))
+                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='slow'), payload={"expire": 30})
 
     def mqtt_to_color(self, mqtt_message, default=None):
         if mqtt_message.lower() == "yes":
