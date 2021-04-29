@@ -6,7 +6,7 @@ class Blinker(Thread):
     SLOW = 2
     FAST = 0.1
 
-    DEFAULT_EXPIRE = 10     # Expire red/green after DEFAULT_EXPIRE seconds
+    DEFAULT_EXPIRE = 30     # Expire red/green after DEFAULT_EXPIRE seconds
 
     def __init__(self, messagebus, led1, led2):
         super(Blinker, self).__init__(name="Blinker")
@@ -26,23 +26,23 @@ class Blinker(Thread):
                 self.timer_expire = time.time() + self.period
             time.sleep(self.FAST)
 
-    def message_handler(self, component, message):
-        print(f"Button.handler: component={component} message={message}")
+    def message_handler(self, component, message, **kwargs):
+        print(f"Blinker: component={component} message={message} kwargs={kwargs}")
         if message == "fast":
             self.set_period(self.FAST)
         elif message == "slow":
             self.set_period(self.SLOW)
         elif message == "red":
             self.led1.value = False
-            self.led1.value = True
+            self.led2.value = True
             self.timer_expire = time.time() + self.DEFAULT_EXPIRE
         elif message == "green":
             self.led1.value = True
-            self.led1.value = False
+            self.led2.value = False
             self.timer_expire = time.time() + self.DEFAULT_EXPIRE
         elif message == "off":
             self.led1.value = False
-            self.led1.value = False
+            self.led2.value = False
             self.timer_expire = -1
 
     def toggle(self):
