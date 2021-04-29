@@ -17,4 +17,3 @@ class Button(Thread):
             print("Button: waiting for button release")
             self.button.wait_for_release()
             self.messagebus.publish("Button", "released")
-

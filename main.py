@@ -3,25 +3,76 @@
 from button import Button
 from blinker import Blinker
 from display import Display
+from mqtt import MQTT
 from messagebus import messagebus
 
 LED1 = "GPIO20"
 LED2 = "GPIO21"
 BUTTON = "GPIO16"
 
+config = {
+    "Button": {
+        "gpio": "GPIO16",
+    },
+    "Blinker": {
+        "led1": "GPIO20",
+        "led2": "GPIO21",
+    },
+    "MQTT": {
+        "server": "test.mosquitto.org",
+        "port": 1883,
+        "topic": "kiwila/coming",
+        "client_name": "mlpi",
+    },
+}
+
 class Controller:
     def __init__(self, messagebus):
-        #super(Controller, self).__init__(name="Controller")
         self.messagebus = messagebus
         self.messagebus.subscribe(None, self.message_handler)   # None = subscribe to the root topic
+        self.last_mqtt_payload = ''
 
-    def message_handler(self, component, message):
+    def message_handler(self, component, message, **kwargs):
+        print(f"Controller: component={component} message={message} kwargs={kwargs}")
         if component == "Button":
             if message == "pressed":
                 self.messagebus.publish("Blinker", "fast")
             elif message == "released":
-                self.messagebus.publish("Blinker", "slow")
-                self.messagebus.publish("Display", "refresh-button")
+                self.messagebus.publish("Display", "display-message", payload=self.mqtt_to_display(self.last_mqtt_payload))
+                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='slow'))
+        elif component == "MQTT":
+            if message == "message" and 'payload' in kwargs:
+                self.last_mqtt_payload = kwargs['payload']
+                self.messagebus.publish("Display", "display-message", payload=self.mqtt_to_display(self.last_mqtt_payload))
+                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='slow'))
+
+    def mqtt_to_color(self, mqtt_message, default=None):
+        if mqtt_message.lower() == "yes":
+            return "green"
+        if mqtt_message.lower() == "no":
+            return "red"
+        return default
+
+    def mqtt_to_display(self, mqtt_message):
+        if mqtt_message.lower() == "yes":
+            return {
+                "text": "YES",
+                "color": "green",
+                "subtext": "michael isn't coming",
+            }
+
+        if mqtt_message.lower() == "no":
+            return {
+                "text": "NO",
+                "color": "red",
+                "subtext": "michael is coming",
+            }
+
+        return {
+            "text": "???",
+            "color": "yellow",
+            "subtext": "who knows...",
+        }
 
 if __name__ == "__main__":
     print("Starting Blinker")
@@ -35,6 +86,9 @@ if __name__ == "__main__":
     print("Creating Display")
     display = Display(messagebus)
     display.start()
+
+    print("Creating MQTT client")
+    mqtt = MQTT(messagebus, config['MQTT'])
 
     print("Creating Controller")
     controller = Controller(messagebus)

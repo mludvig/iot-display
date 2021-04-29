@@ -1,3 +1,4 @@
 pypubsub>=4.0
 adafruit-circuitpython-rgb-display
 Pillow>=8.0
+paho-mqtt
