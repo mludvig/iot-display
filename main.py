@@ -2,6 +2,7 @@
 
 from button import Button
 from blinker import Blinker
+from buzzer import Buzzer
 from display import Display
 from mqtt import MQTT
 from messagebus import messagebus
@@ -17,6 +18,9 @@ config = {
     "Blinker": {
         "led1": "GPIO20",
         "led2": "GPIO21",
+    },
+    "Buzzer": {
+        "pin": "GPIO3",
     },
     "MQTT": {
         "server": "test.mosquitto.org",
@@ -39,26 +43,31 @@ class Controller:
                 self.messagebus.publish("Blinker", "fast", payload={"expire": 120}) # Expire fast-blinking after 2 mins at the latest
             elif message == "released":
                 self.messagebus.publish("Display", "display-message", payload=self.mqtt_to_display(self.last_mqtt_payload))
-                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='slow'), payload={"expire": 30})
+                self.messagebus.publish("Buzzer", "play", payload={"tune": self.last_mqtt_payload})
+                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='fast'), payload={"expire": 30})
         elif component == "MQTT":
             if message == "message" and 'payload' in kwargs:
-                self.last_mqtt_payload = kwargs['payload']
+                # Sanitise MQTT Payload
+                payload = kwargs['payload'].lower()
+                payload == {"true": "yes", "false": "no"}.get(payload, payload) # Map true->yes, false->no ;)
+                if payload not in ('yes', 'no', 'unknown'):
+                    print(f"Controller: Invalid MQTT payload: {payload}")
+                    return
+                self.last_mqtt_payload = payload
                 self.messagebus.publish("Display", "display-message", payload=self.mqtt_to_display(self.last_mqtt_payload))
-                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='slow'), payload={"expire": 30})
+                self.messagebus.publish("Buzzer", "play", payload={"tune": self.last_mqtt_payload})
+                self.messagebus.publish("Blinker", self.mqtt_to_color(self.last_mqtt_payload, default='fast'), payload={"expire": 30})
 
     def mqtt_to_color(self, mqtt_message, default=None):
-        if mqtt_message.lower() == "yes":
-            return "green"
-        if mqtt_message.lower() == "no":
-            return "red"
-        return default
+        colormap = { "yes": "green", "no": "red" }
+        return colormap.get(mqtt_message.lower(), default)
 
     def mqtt_to_display(self, mqtt_message):
         if mqtt_message.lower() == "yes":
             return {
                 "text": "YES",
                 "color": "green",
-                "subtext": "michael isn't coming",
+                "subtext": "michael's not coming",
                 "subtext_color": "yellow",
                 "expire": 30,
             }
@@ -87,6 +96,10 @@ if __name__ == "__main__":
     print("Starting Button")
     button = Button(messagebus, BUTTON)
     button.start()
+
+    print("Starting Buzzer")
+    buzzer = Buzzer(messagebus, config['Buzzer'])
+    buzzer.start()
 
     print("Creating Display")
     display = Display(messagebus)
