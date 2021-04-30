@@ -1,11 +1,11 @@
 import time
 from threading import Thread
-from gpiozero import Button
+import gpiozero
 
 class Button(Thread):
     def __init__(self, messagebus, button_pin):
         super().__init__(name="Button")
-        self.button = Button(button_pin)
+        self.button = gpiozero.Button(button_pin)
         self.messagebus = messagebus
 
     def run(self):
