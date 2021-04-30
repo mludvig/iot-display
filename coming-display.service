@@ -1,0 +1,18 @@
+# Update the paths below and then
+# link from /etc/systemd/system/
+
+[Unit]
+Description=Coming Display
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=pi
+WorkingDirectory=/home/pi/coming-display/
+ExecStart=python3 /home/pi/coming-display/main.py
+
+[Install]
+WantedBy=multi-user.target
