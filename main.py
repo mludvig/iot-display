@@ -59,6 +59,8 @@ class Controller:
                 "text": "YES",
                 "color": "green",
                 "subtext": "michael isn't coming",
+                "subtext_color": "yellow",
+                "expire": 30,
             }
 
         if mqtt_message.lower() == "no":
@@ -66,12 +68,15 @@ class Controller:
                 "text": "NO",
                 "color": "red",
                 "subtext": "michael is coming",
+                "subtext_color": "yellow",
+                "expire": 30,
             }
 
         return {
             "text": "???",
             "color": "yellow",
             "subtext": "who knows...",
+            "expire": 30,
         }
 
 if __name__ == "__main__":

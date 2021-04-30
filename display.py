@@ -18,7 +18,7 @@ FONT_SIZE_TIME = 15
 FONT_SIZE_TEXT = 60
 FONT_SIZE_SUBTEXT = 10
 WALLPAPER = "images/wallpaper.jpg"  # Initial image
-WALLPAPER_CHANGE = 30   # Seconds
+WALLPAPER_CHANGE = 60   # Seconds
 
 class DisplayDriver:
     # GPIO configuration
@@ -79,6 +79,9 @@ class DisplayDriver:
         self._display.image(image)
 
 class Display(Thread):
+    MODES = ("clock", "message")
+    MODE_IDLE = "clock"
+
     def __init__(self, messagebus):
         super(Display, self).__init__(name="Display")
         self.period = 60
@@ -94,43 +97,74 @@ class Display(Thread):
         self.messagebus.subscribe("Display", self.message_handler)
 
         # Start ImageDownloader background task
-        self.image_downloader = ImageDownloader(self, messagebus)
+        self.image_downloader = ImageDownloader(messagebus, self.driver.width, self.driver.height)
         self.image_downloader.start()
 
+        self.set_mode(self.MODE_IDLE)
+
     def run(self):
-        start_ts = time.time()
+        _last = None
         while True:
-            print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: Start")
-            image = self.draw_time(self.image)
-            self.driver.display_image(image)
-            print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: Done")
+            time.sleep(0.1)
 
-            time.sleep(self.period - ((time.time() - start_ts) % self.period))
+            image = None
 
-    def message_handler(self, component, message, payload=None):
+            if 0 < self.mode_expire < time.time():
+                self.set_mode(self.MODE_IDLE)
+
+            if self.mode == "clock":
+                text = datetime.strftime(datetime.now(), TIME_FORMAT).lstrip('0')
+                if text == _last:
+                    continue
+                image = self.draw_clock(self.image, text)
+                _last = text
+            elif self.mode == "message":
+                if self.mode_data == _last:
+                    continue
+                image = self.draw_message(self.image, self.mode_data)
+                _last = self.mode_data
+
+            if image:
+                self.driver.display_image(image)
+
+    def message_handler(self, component, message, payload={}):
         print(f"{self.name}: component={component} message={message} payload={payload}")
-        if message == "refresh":
-            image = self.draw_time(self.image)
-        elif message == "display-message":
-            image = self.draw_message(self.image, payload)
+        if message == "display-message":
+            self.set_mode("message", data=payload)
+        elif message == "refresh":
+            self.update_image(payload['image'])
         else:
             print(f"{self.name}: Unknown message, ignored")
+
+    def set_mode(self, mode, data={}):
+        print(f"{self.name}: set_mode={mode} data={data}")
+        if mode == "idle":
+            mode = self.MODE_IDLE
+
+        if mode not in self.MODES:
+            print(f"{self.name}: Unknown mode: {mode}")
             return
-        self.driver.display_image(image)
+
+        self.mode = mode
+        self.mode_data = data
+
+        expire = data.get('expire') # => None if not there
+        if expire is None:
+            self.mode_expire = -1
+        else:
+            self.mode_expire = time.time() + expire
 
     def update_image(self, image):
         self.image = image
 
-    def draw_time(self, image):
+    def draw_clock(self, image, text_time):
         # Draw into a new copy of the image
         image_draw = image.copy()
         draw = ImageDraw.Draw(image_draw)
-        text = datetime.strftime(datetime.now(), TIME_FORMAT)
-        text = text.lstrip('0')
-        bbox = draw.textbbox((0,0), text=text, font=self.font_time, stroke_width=1)
+        bbox = draw.textbbox((0,0), text=text_time, font=self.font_time, stroke_width=1)
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
-        draw.text((image_draw.width/2 - width/2, image_draw.height - height - bbox[1] - 5), text, font=self.font_time, fill=(255,255,255), stroke_width=1, stroke_fill=(0,0,0))
+        draw.text((image_draw.width/2 - width/2, image_draw.height - height - bbox[1] - 5), text_time, font=self.font_time, fill=(255,255,255), stroke_width=1, stroke_fill=(0,0,0))
         return image_draw
 
     def draw_message(self, image, payload):
@@ -173,13 +207,11 @@ class Display(Thread):
         return image_draw
 
 class ImageDownloader(Thread):
-    def __init__(self, display, messagebus):
+    def __init__(self, messagebus, width, height):
         super(ImageDownloader, self).__init__(name="ImageDownloader")
         self.period = WALLPAPER_CHANGE    # Download a new image every this many seconds
         self.messagebus = messagebus
-        self.display = display
-
-        self.url = f"https://source.unsplash.com/random/{self.display.driver.width}x{self.display.driver.height}"
+        self.url = f"https://source.unsplash.com/random/{width}x{height}"
 
     def run(self):
         start_ts = time.time()
@@ -193,8 +225,7 @@ class ImageDownloader(Thread):
             print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: {r.url}")
             r.raise_for_status()
             image = Image.open(BytesIO(r.content))
-            self.display.update_image(image)
-            self.messagebus.publish("Display", "refresh", payload="NewImage")
+            self.messagebus.publish("Display", "refresh", payload={"image": image})
         except Exception as e:
             print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: {e}")
 
