@@ -4,9 +4,9 @@ from gpiozero import TonalBuzzer
 from gpiozero.tones import Tone
 
 class Buzzer(Thread):
-    def __init__(self, messagebus, config):
-        super().__init__(name=__class__.__name__)
-        self.buzzer = TonalBuzzer(config['pin'])
+    def __init__(self, messagebus, buzzer_pin):
+        super().__init__(name="Buzzer")
+        self.buzzer = TonalBuzzer(buzzer_pin)
         self.messagebus = messagebus
         self.messagebus.subscribe(component="Buzzer", handler=self.message_handler)
 

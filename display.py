@@ -83,8 +83,7 @@ class Display(Thread):
     MODE_IDLE = "clock"
 
     def __init__(self, messagebus):
-        super(Display, self).__init__(name="Display")
-        self.period = 60
+        super().__init__(name="Display")
 
         self.driver = DisplayDriver()
         self.font_time = ImageFont.truetype(FONT_FILE, FONT_SIZE_TIME)
@@ -95,10 +94,6 @@ class Display(Thread):
         # Only subscribe to messagebus after we have the initial image
         self.messagebus = messagebus
         self.messagebus.subscribe("Display", self.message_handler)
-
-        # Start ImageDownloader background task
-        self.image_downloader = ImageDownloader(messagebus, self.driver.width, self.driver.height)
-        self.image_downloader.start()
 
         self.set_mode(self.MODE_IDLE)
 
@@ -207,11 +202,11 @@ class Display(Thread):
         return image_draw
 
 class ImageDownloader(Thread):
-    def __init__(self, messagebus, width, height):
-        super(ImageDownloader, self).__init__(name="ImageDownloader")
+    def __init__(self, messagebus, config):
+        super().__init__(name="ImageDownloader")
         self.period = WALLPAPER_CHANGE    # Download a new image every this many seconds
+        self.url = config['url']
         self.messagebus = messagebus
-        self.url = f"https://source.unsplash.com/random/{width}x{height}"
 
     def run(self):
         start_ts = time.time()
@@ -222,12 +217,12 @@ class ImageDownloader(Thread):
     def download_image(self):
         try:
             r = requests.get(self.url)
-            print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: {r.url}")
+            print(f"{self.name}: {r.url}")
             r.raise_for_status()
             image = Image.open(BytesIO(r.content))
             self.messagebus.publish("Display", "refresh", payload={"image": image})
         except Exception as e:
-            print(f"{datetime.now().strftime('%H:%M:%S.%f')}: {self.name}: {e}")
+            print(f"{self.name}: {e}")
 
 if __name__ == "__main__":
     import time

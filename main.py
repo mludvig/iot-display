@@ -1,34 +1,20 @@
 #!/usr/bin/env python3
 
+import toml
+
 from button import Button
 from blinker import Blinker
 from buzzer import Buzzer
-from display import Display
+from display import Display, ImageDownloader
 from mqtt import MQTT
 from messagebus import messagebus
+
+CONFIG_FILE = "config.toml"
 
 LED1 = "GPIO20"
 LED2 = "GPIO21"
 BUTTON = "GPIO16"
-
-config = {
-    "Button": {
-        "gpio": "GPIO16",
-    },
-    "Blinker": {
-        "led1": "GPIO20",
-        "led2": "GPIO21",
-    },
-    "Buzzer": {
-        "pin": "GPIO3",
-    },
-    "MQTT": {
-        "server": "test.mosquitto.org",
-        "port": 1883,
-        "topic": "kiwila/coming",
-        "client_name": "mlpi",
-    },
-}
+BUZZER = "GPIO3"
 
 class Controller:
     def __init__(self, messagebus):
@@ -89,6 +75,10 @@ class Controller:
         }
 
 if __name__ == "__main__":
+    print(f"Loading config from {CONFIG_FILE}")
+    with open(CONFIG_FILE) as f:
+        config = toml.load(f)
+
     print("Starting Blinker")
     blinker = Blinker(messagebus, LED1, LED2)
     blinker.start()
@@ -98,18 +88,22 @@ if __name__ == "__main__":
     button.start()
 
     print("Starting Buzzer")
-    buzzer = Buzzer(messagebus, config['Buzzer'])
+    buzzer = Buzzer(messagebus, BUZZER)
     buzzer.start()
 
     print("Creating Display")
     display = Display(messagebus)
     display.start()
 
+    # Start ImageDownloader background task
+    image_downloader = ImageDownloader(messagebus, config['ImageDownloader'])
+    image_downloader.start()
+
     print("Creating MQTT client")
     mqtt = MQTT(messagebus, config['MQTT'])
 
     print("Creating Controller")
     controller = Controller(messagebus)
-    #controller.start()
+    # controller.start()    # Controller is not a Thread
 
     print("Startup done")

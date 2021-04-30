@@ -1,6 +1,6 @@
 import time
 from threading import Thread
-import gpiozero
+from gpiozero import LED
 
 class Blinker(Thread):
     SLOW = 2
@@ -10,9 +10,9 @@ class Blinker(Thread):
     DEFAULT_EXPIRE = 30     # Expire red/green after DEFAULT_EXPIRE seconds
 
     def __init__(self, messagebus, led1, led2):
-        super(Blinker, self).__init__(name="Blinker")
-        self.led1 = gpiozero.LED(led1)
-        self.led2 = gpiozero.LED(led2)
+        super().__init__(name="Blinker")
+        self.led1 = LED(led1)
+        self.led2 = LED(led2)
 
         self.timer_expire = 0
         self.mode_expire = -1
@@ -32,7 +32,7 @@ class Blinker(Thread):
             time.sleep(self.FAST)
 
     def message_handler(self, component, message, payload={}):
-        print(f"Blinker: component={component} message={message} payload={payload}")
+        print(f"{self.name}: component={component} message={message} payload={payload}")
         self.set_mode(message, payload.get('expire', self.DEFAULT_EXPIRE))
 
     def toggle(self):
