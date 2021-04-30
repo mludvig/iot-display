@@ -1,0 +1,8 @@
+[MQTT]
+server = "test.mosquitto.org"
+port = 1883
+topic = "mludvig/coming"
+client_name = "display"
+
+[ImageDownloader]
+url = "https://source.unsplash.com/random/160x128"
