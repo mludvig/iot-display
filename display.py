@@ -33,7 +33,7 @@ class DisplayDriver:
     def __init__(self):
         self._display = st7735.ST7735S(
             spi=board.SPI(),
-            rotation=0,
+            rotation=180,
             bl=digitalio.DigitalInOut(self.BL_PIN),
             cs=digitalio.DigitalInOut(self.CS_PIN),
             dc=digitalio.DigitalInOut(self.DC_PIN),
