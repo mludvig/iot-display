@@ -204,15 +204,19 @@ class Display(Thread):
 class ImageDownloader(Thread):
     def __init__(self, messagebus, config):
         super().__init__(name="ImageDownloader")
-        self.period = WALLPAPER_CHANGE    # Download a new image every this many seconds
+        self.enabled = config.get('enabled', True)
+        self.refresh_period = config.get('refresh', WALLPAPER_CHANGE)    # Download a new image every this many seconds
         self.url = config['url']
         self.messagebus = messagebus
+        if self.enabled:
+            print(f"{self.name}: Refresh image every {self.refresh_period} sec from {self.url}")
 
     def run(self):
         start_ts = time.time()
         while True:
-            self.download_image()
-            time.sleep(self.period - ((time.time() - start_ts) % self.period))
+            if self.enabled:
+                self.download_image()
+            time.sleep(self.refresh_period - ((time.time() - start_ts) % self.refresh_period))
 
     def download_image(self):
         try:

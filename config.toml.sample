@@ -5,4 +5,9 @@ topic = "mludvig/coming"
 client_name = "display"
 
 [ImageDownloader]
+enabled = true
 url = "https://source.unsplash.com/random/160x128"
+refresh = 300	# seconds
+
+[Buzzer]
+enabled = false

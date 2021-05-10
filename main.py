@@ -88,7 +88,7 @@ if __name__ == "__main__":
     button.start()
 
     print("Starting Buzzer")
-    buzzer = Buzzer(messagebus, BUZZER)
+    buzzer = Buzzer(messagebus, BUZZER, config['Buzzer'])
     buzzer.start()
 
     print("Creating Display")

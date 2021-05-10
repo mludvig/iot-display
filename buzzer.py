@@ -4,11 +4,12 @@ from gpiozero import TonalBuzzer
 from gpiozero.tones import Tone
 
 class Buzzer(Thread):
-    def __init__(self, messagebus, buzzer_pin):
+    def __init__(self, messagebus, buzzer_pin, config):
         super().__init__(name="Buzzer")
         self.buzzer = TonalBuzzer(buzzer_pin)
         self.messagebus = messagebus
-        self.messagebus.subscribe(component="Buzzer", handler=self.message_handler)
+        if config.get('enabled', True):
+            self.messagebus.subscribe(component="Buzzer", handler=self.message_handler)
 
     def message_handler(self, component, message, payload={}):
         print(f"{self.name}: component={component} message={message} payload={payload}")
@@ -23,6 +24,8 @@ class Buzzer(Thread):
             tones = range(self.buzzer.min_tone.midi, self.buzzer.max_tone.midi)
         elif tune == "no":
             tones = range(self.buzzer.max_tone.midi, self.buzzer.min_tone.midi, -1)
+        if not tones:
+            return
         for tone in tones:
             self.buzzer.play(Tone(midi=tone))
             time.sleep(0.03)
