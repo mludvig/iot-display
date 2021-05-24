@@ -1,6 +1,8 @@
 [MQTT]
 server = "test.mosquitto.org"
 port = 1883
+#username = "mqtt_user"
+#password = "mqtt_pass"
 topic = "mludvig/coming"
 client_name = "display"
 

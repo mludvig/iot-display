@@ -1,5 +1,4 @@
 import json
-import socket
 import paho.mqtt.client
 import paho.mqtt.publish
 
@@ -13,6 +12,8 @@ class MQTT:
         self.client_name = config.get('client_name', 'is-he-coming')
 
         self.client = paho.mqtt.client.Client(self.client_name)
+        if config.get('username'):
+            self.client.username_pw_set(config['username'], config.get('password'))
 
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
@@ -35,4 +36,6 @@ class MQTT:
 
     def on_message(self, client, userdata, msg):
         print(f"MQTT: {msg.topic}: {msg.payload}")
-        self.messagebus.publish("MQTT", "message", payload=msg.payload.decode('ascii'))
+        payload = msg.payload.decode('ascii')
+        self.messagebus.publish("MQTT", "message", payload=payload)
+        self.publish(f"{msg.topic}/current", payload)
