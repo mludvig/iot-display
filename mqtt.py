@@ -1,4 +1,5 @@
 import json
+import datetime
 import paho.mqtt.client
 import paho.mqtt.publish
 
@@ -38,4 +39,7 @@ class MQTT:
         print(f"MQTT: {msg.topic}: {msg.payload}")
         payload = msg.payload.decode('ascii')
         self.messagebus.publish("MQTT", "message", payload=payload)
-        self.publish(f"{msg.topic}/current", payload)
+        self.publish(f"{msg.topic}/current", {
+            "payload": payload,
+            "timestamp": str(datetime.datetime.now().astimezone()),
+        })
