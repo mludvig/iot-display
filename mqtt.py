@@ -3,6 +3,8 @@ import datetime
 import paho.mqtt.client
 import paho.mqtt.publish
 
+from iputil import get_my_ip
+
 class MQTT:
     def __init__(self, messagebus, config):
         self.config = config
@@ -42,4 +44,5 @@ class MQTT:
         self.publish(f"{msg.topic}/current", {
             "payload": payload,
             "timestamp": str(datetime.datetime.now().astimezone()),
+            "ip": get_my_ip(),
         })
