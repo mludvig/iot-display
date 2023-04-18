@@ -19,6 +19,8 @@ FONT_SIZE_TEXT = 60
 FONT_SIZE_SUBTEXT = 10
 WALLPAPER = "images/wallpaper.jpg"  # Initial image
 WALLPAPER_CHANGE = 60   # Seconds
+DISPLAY_WIDTH = 160
+DISPLAY_HEIGHT = 128
 
 class DisplayDriver:
     # GPIO configuration
@@ -41,8 +43,8 @@ class DisplayDriver:
             baudrate=self.BAUDRATE,
             x_offset=0,
             y_offset=0,
-            width=160,
-            height=128,
+            width=DISPLAY_WIDTH,
+            height=DISPLAY_HEIGHT,
         )
 
         # we swap height/width to rotate it to landscape!
@@ -212,6 +214,7 @@ class ImageDownloader(Thread):
             print(f"{self.name}: Refresh image every {self.refresh_period} sec from {self.url}")
 
     def run(self):
+        print(f"Started ImageDownloader thread")
         start_ts = time.time()
         while True:
             if self.enabled:
@@ -228,26 +231,28 @@ class ImageDownloader(Thread):
         except Exception as e:
             print(f"{self.name}: {e}")
 
-if __name__ == "__main__":
-    import time
-    import requests
-    
-    display = DisplayDriver()
-    #url = f"https://unsplash.it/{display.width}/{display.height}/?random"
-    #url = f"https://picsum.photos/id/718/{display.width}/{display.height}"
-    url = f"https://source.unsplash.com/random/{display.width}x{display.height}"
 
-    while True:
+class UnsplashImageDownloader(ImageDownloader):
+    def __init__(self, messagebus, config):
+        super().__init__(messagebus, config)
+        self.api_key = config['api_key']
+        self.width = DISPLAY_WIDTH
+        self.height = DISPLAY_HEIGHT
+        self.orientation = config.get('orientation', 'landscape')
+        if self.enabled:
+            print(f"{self.name}: Refresh image every {self.refresh_period} sec from Unsplash")
+
+    def download_image(self):
         try:
+            url = f"{self.url}?client_id={self.api_key}&orientation={self.orientation}"
             r = requests.get(url)
-            print(r.url)
+            print(f"{self.name}: Image metadata: {r.url}")
             r.raise_for_status()
+            image_url = r.json()['urls']['raw']
+            image_url += f"&crop=faces,edges&fit=crop&w={self.width}&h={self.height}"
+            print(f"{self.name}: Image URL: {image_url}")
+            r = requests.get(image_url)
             image = Image.open(BytesIO(r.content))
+            self.messagebus.publish("Display", "refresh", payload={"image": image})
         except Exception as e:
-            print(f"Exception: {e}")
-            time.sleep(10)
-            continue
-        
-        display.display_image(image)
-
-        time.sleep(10)
+            print(f"{self.name}: {e}")

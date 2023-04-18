@@ -11,5 +11,11 @@ enabled = true
 url = "https://source.unsplash.com/random/160x128"
 refresh = 300	# seconds
 
+[UnsplashImageDownloader]
+enabled = true
+url = "https://api.unsplash.com/photos/random"
+api_key = "UnSpLaSh_AccEss_Key_1234567890"
+refresh = 300	# seconds
+
 [Buzzer]
 enabled = false

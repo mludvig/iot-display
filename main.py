@@ -5,7 +5,7 @@ import toml
 from button import Button
 from blinker import Blinker
 from buzzer import Buzzer
-from display import Display, ImageDownloader
+from display import Display, UnsplashImageDownloader # , ImageDownloader
 from mqtt import MQTT
 from messagebus import messagebus
 
@@ -96,7 +96,8 @@ if __name__ == "__main__":
     display.start()
 
     # Start ImageDownloader background task
-    image_downloader = ImageDownloader(messagebus, config['ImageDownloader'])
+    # image_downloader = ImageDownloader(messagebus, config['ImageDownloader'])
+    image_downloader = UnsplashImageDownloader(messagebus, config['UnsplashImageDownloader'])
     image_downloader.start()
 
     print("Creating MQTT client")
